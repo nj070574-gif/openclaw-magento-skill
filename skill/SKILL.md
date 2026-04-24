@@ -9,9 +9,8 @@ author: openclaw-community
 license: MIT
 tags: [magento, ecommerce, devops, store-admin, ssh, rest-api, graphql, composer]
 
-primary_credential: MAGENTO_SSH_KEY
-
 requires:
+  primary_credential: MAGENTO_SSH_KEY
   env:
     - name: MAGENTO_HOST
       description: Magento server IP or hostname
@@ -39,35 +38,29 @@ requires:
       description: Magento admin password (REST API token generation only)
   optional_env:
     - name: MAGENTO_CA_CERT
-      description: Path to CA cert for HTTPS (e.g. /opt/ssl/ca.crt). Required if store uses a self-signed certificate.
+      description: CA cert path for HTTPS (e.g. /opt/ssl/ca.crt)
     - name: MAGENTO_OS_URL
       description: OpenSearch URL (default http://127.0.0.1:9200)
     - name: MAGENTO_ADMIN_PATH
       description: Admin path (default admin)
     - name: COMPOSER_PATH
-      description: Composer binary (e.g. /usr/local/bin/composer)
+      description: Composer binary path (e.g. /usr/local/bin/composer)
   binaries:
-    - name: ssh
-      description: SSH client for server access via key auth
-    - name: mysql
-      description: MySQL client for DB queries
-    - name: curl
-      description: HTTP client for REST API and GraphQL calls
-    - name: redis-cli
-      description: Redis client for cache management
-    - name: python3
-      description: Used for JSON parsing (OpenSearch health, GraphQL responses)
+    - ssh
+    - mysql
+    - curl
+    - redis-cli
+    - python3
 
 security:
   scope: owner-operated
   auth_method: ssh-key-only
   sudo_method: passwordless-sudoers
-  primary_credential: MAGENTO_SSH_KEY
   credential_handling: user-supplied-only
   network_access: user-own-server-only
   note: >
-    SSH key auth only. DB password via MYSQL_PWD env var (not in process args). REST API password in HTTPS request body only, never on command lines.
-    All credentials user-supplied via openclaw.json env block only.
+    SSH key auth only. DB password via MYSQL_PWD env var (not in process args).
+    REST API password in HTTPS body only. All credentials user-supplied.
     Connects only to MAGENTO_HOST. Nothing sent to third parties.
 
 prompt_injection_mitigation: >

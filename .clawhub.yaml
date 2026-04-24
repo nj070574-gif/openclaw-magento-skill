@@ -3,10 +3,11 @@ slug: magento-admin
 version: "5.5.0"
 description: >
   Complete Magento 2 store administration via SSH key auth, REST API, GraphQL,
-  and direct DB access. For server owners administering their own infrastructure.
-  SSH key auth and passwordless sudo required — no passwords on command lines.
+  and direct DB access. For server owners on their own infrastructure.
+  SSH key auth and passwordless sudo required.
 author: openclaw-community
 license: MIT
+main: skill/SKILL.md
 tags:
   - magento
   - ecommerce
@@ -16,22 +17,19 @@ tags:
   - rest-api
   - graphql
   - composer
-main: skill/SKILL.md
-
-primary_credential: MAGENTO_SSH_KEY
-
 requires:
+  primary_credential: MAGENTO_SSH_KEY
   env:
     - name: MAGENTO_HOST
       description: Magento server IP or hostname
     - name: MAGENTO_SSH_USER
-      description: SSH username (must have passwordless sudo configured)
+      description: SSH username (passwordless sudo required on server)
     - name: MAGENTO_SSH_KEY
-      description: Path to SSH private key file (e.g. ~/.ssh/magento_deploy)
+      description: Path to SSH private key (e.g. ~/.ssh/magento_deploy)
     - name: MAGENTO_WEB_ROOT
       description: Magento installation path (e.g. /var/www/html/magento2)
     - name: MAGENTO_PHP
-      description: PHP binary path (e.g. /usr/bin/php8.4)
+      description: PHP binary (e.g. /usr/bin/php8.4)
     - name: MAGENTO_WEB_USER
       description: Web server user (e.g. www-data)
     - name: MAGENTO_DB_NAME
@@ -45,14 +43,14 @@ requires:
     - name: MAGENTO_ADMIN_USER
       description: Magento admin username
     - name: MAGENTO_ADMIN_PASS
-      description: Magento admin password (used only for REST API token generation)
+      description: Magento admin password (REST API token generation only)
   optional_env:
     - name: MAGENTO_CA_CERT
-      description: Path to CA cert for HTTPS (e.g. /opt/ssl/ca.crt)
+      description: CA cert path for HTTPS (e.g. /opt/ssl/ca.crt)
     - name: MAGENTO_OS_URL
       description: OpenSearch URL (default http://127.0.0.1:9200)
     - name: MAGENTO_ADMIN_PATH
-      description: Admin URL path (default admin)
+      description: Admin path (default admin)
     - name: COMPOSER_PATH
       description: Composer binary path (e.g. /usr/local/bin/composer)
   binaries:
@@ -61,19 +59,16 @@ requires:
     - curl
     - redis-cli
     - python3
-
 security:
   scope: owner-operated
   auth_method: ssh-key-only
   sudo_method: passwordless-sudoers
-  primary_credential: MAGENTO_SSH_KEY
-  note: >
-    SSH key auth only — no passwords on command lines or in process arguments.
-    All credentials user-supplied. Connects only to MAGENTO_HOST.
-    No data sent to third parties.
   credential_handling: user-supplied-only
   network_access: user-own-server-only
-
+  note: >
+    SSH key auth only. DB password via MYSQL_PWD env var (not in process args).
+    REST API password in HTTPS body only. All credentials user-supplied.
+    Connects only to MAGENTO_HOST. Nothing sent to third parties.
 prompt_injection_mitigation: >
   All commands use fixed config variables only. Free-form user input is
   never interpolated into shell commands.
