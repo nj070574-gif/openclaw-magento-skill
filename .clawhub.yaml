@@ -1,12 +1,11 @@
 name: magento-admin
 slug: magento-admin
-version: "5.2.0"
+version: "5.3.0"
 description: >
-  The definitive Magento 2 administration skill. Full store control via SSH,
-  REST API, GraphQL, and direct DB access. Orders, products, customers,
-  revenue, cache, indexing, cron, extensions, deployment, backup, security,
-  email, price rules, GraphQL, and more. Nothing is out of scope.
-author: nj070574-gif
+  Complete Magento 2 store administration via SSH key auth, REST API, GraphQL,
+  and direct DB access. For server owners administering their own infrastructure.
+  SSH key auth and passwordless sudo required — no passwords on command lines.
+author: openclaw-community
 license: MIT
 tags:
   - magento
@@ -18,4 +17,61 @@ tags:
   - graphql
   - composer
 main: skill/SKILL.md
-prompt_injection_mitigation: Commands use fixed config variables only - no user input interpolated into shell commands
+
+primary_credential: MAGENTO_SSH_KEY
+
+requires:
+  env:
+    - name: MAGENTO_HOST
+      description: Magento server IP or hostname
+    - name: MAGENTO_SSH_USER
+      description: SSH username (must have passwordless sudo configured)
+    - name: MAGENTO_SSH_KEY
+      description: Path to SSH private key file (e.g. ~/.ssh/magento_deploy)
+    - name: MAGENTO_WEB_ROOT
+      description: Magento installation path (e.g. /var/www/html/magento2)
+    - name: MAGENTO_PHP
+      description: PHP binary path (e.g. /usr/bin/php8.4)
+    - name: MAGENTO_WEB_USER
+      description: Web server user (e.g. www-data)
+    - name: MAGENTO_DB_NAME
+      description: Database name
+    - name: MAGENTO_DB_USER
+      description: Database username
+    - name: MAGENTO_DB_PASS
+      description: Database password
+    - name: MAGENTO_BASE_URL
+      description: Store base URL (e.g. https://store.example.com)
+    - name: MAGENTO_ADMIN_USER
+      description: Magento admin username
+    - name: MAGENTO_ADMIN_PASS
+      description: Magento admin password (used only for REST API token generation)
+  optional_env:
+    - name: MAGENTO_OS_URL
+      description: OpenSearch URL (default http://127.0.0.1:9200)
+    - name: MAGENTO_ADMIN_PATH
+      description: Admin URL path (default admin)
+    - name: COMPOSER_PATH
+      description: Composer binary path (e.g. /usr/local/bin/composer)
+  binaries:
+    - ssh
+    - mysql
+    - curl
+    - redis-cli
+    - python3
+
+security:
+  scope: owner-operated
+  auth_method: ssh-key-only
+  sudo_method: passwordless-sudoers
+  primary_credential: MAGENTO_SSH_KEY
+  note: >
+    SSH key auth only — no passwords on command lines or in process arguments.
+    All credentials user-supplied. Connects only to MAGENTO_HOST.
+    No data sent to third parties.
+  credential_handling: user-supplied-only
+  network_access: user-own-server-only
+
+prompt_injection_mitigation: >
+  All commands use fixed config variables only. Free-form user input is
+  never interpolated into shell commands.

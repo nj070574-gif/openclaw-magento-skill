@@ -1,6 +1,6 @@
 ---
 name: magento-admin
-version: "5.2.0"
+version: "5.3.0"
 description: >
   Complete Magento 2 store administration via SSH, REST API, GraphQL, and
   direct DB access. Designed for use by the server owner on their own
@@ -84,7 +84,7 @@ only to connect to your own server. Nothing is sent to third parties.
 ## Configuration
 
 Create a private config file at:
-`~/.openclaw/workspace/skills/magento-admin/CONFIG.md`
+Set the following variables in your openclaw.json env block:
 
 Set these variables — all commands in this skill use them as placeholders:
 
@@ -92,8 +92,7 @@ Set these variables — all commands in this skill use them as placeholders:
 |---|---|---|
 | MAGENTO_HOST | Server IP or hostname | 10.0.1.50 |
 | MAGENTO_SSH_USER | SSH username | deploy |
-| MAGENTO_SSH_PASS | SSH password | *(use key auth if possible)* |
-| MAGENTO_SUDO_PASS | Sudo password | *(use passwordless sudo if possible)* |
+| MAGENTO_SSH_KEY | Path to SSH private key | ~/.ssh/magento_deploy |
 | MAGENTO_WEB_ROOT | Magento path | /var/www/html/magento2 |
 | MAGENTO_PHP | PHP binary | /usr/bin/php8.3 |
 | MAGENTO_WEB_USER | Web server user | www-data |
@@ -112,19 +111,13 @@ Set these variables — all commands in this skill use them as placeholders:
 For better security, set up SSH key auth instead of password auth:
 
 ```bash
-# Generate key on agent server if needed
-ssh-keygen -t ed25519 -f ~/.ssh/magento_deploy -N ""
 
-# Copy public key to Magento server
-ssh-copy-id -i ~/.ssh/magento_deploy.pub MAGENTO_SSH_USER@MAGENTO_HOST
 
-# Then use this SSH pattern instead of sshpass:
 ssh -i ~/.ssh/magento_deploy -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGENTO_HOST "COMMAND"
 ```
 
 ## SSH Patterns
 
-**With SSH key auth (recommended):**
 ```bash
 ssh -i ~/.ssh/magento_deploy MAGENTO_SSH_USER@MAGENTO_HOST \
   "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento COMMAND 2>&1"
