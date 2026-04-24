@@ -1,6 +1,6 @@
 ---
 name: magento-admin
-version: "5.1.0"
+version: "5.2.0"
 description: >
   Complete Magento 2 store administration via SSH, REST API, GraphQL, and
   direct DB access. Designed for use by the server owner on their own
@@ -36,17 +36,12 @@ requires:
     - name: MAGENTO_ADMIN_USER
       description: Magento admin username
   binaries:
-    - sshpass
     - ssh
     - mysql
     - curl
     - redis-cli
     - python3
   optional_env:
-    - name: MAGENTO_SSH_PASS
-      description: SSH password (use SSH key auth instead where possible)
-    - name: MAGENTO_SUDO_PASS
-      description: Sudo password (use passwordless sudo or SSH key auth where possible)
     - name: MAGENTO_ADMIN_PASS
       description: Magento admin password
     - name: MAGENTO_OS_URL
@@ -132,24 +127,24 @@ ssh -i ~/.ssh/magento_deploy -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGEN
 **With SSH key auth (recommended):**
 ```bash
 ssh -i ~/.ssh/magento_deploy MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento COMMAND 2>&1"
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento COMMAND 2>&1"
 ```
 
 **With password auth (fallback if SSH keys not configured):**
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento COMMAND 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento COMMAND 2>&1"
 ```
 
 **DB queries:**
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'QUERY' 2>&1"
 ```
 
 **REST API — get token then use it:**
 ```bash
-TOKEN=$(sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+TOKEN=$(ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
    -H 'Content-Type: application/json' \
    -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"'")
@@ -157,8 +152,8 @@ TOKEN=$(sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MA
 
 **Composer:**
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER bash -c 'cd MAGENTO_WEB_ROOT && php COMPOSER_PATH COMMAND 2>&1'"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER bash -c 'cd MAGENTO_WEB_ROOT && php COMPOSER_PATH COMMAND 2>&1'"
 ```
 
 ---
@@ -166,10 +161,10 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 ## FULL HEALTH CHECK
 
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-echo '=== VERSION ===' && echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento --version 2>&1
-echo '=== MODE ===' && echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento deploy:mode:show 2>&1
-echo '=== SERVICES ===' && echo MAGENTO_SUDO_PASS | sudo -S systemctl is-active apache2 nginx mariadb mysql redis-server opensearch php8.3-fpm php8.4-fpm 2>/dev/null
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+echo '=== VERSION ===' && sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento --version 2>&1
+echo '=== MODE ===' && sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento deploy:mode:show 2>&1
+echo '=== SERVICES ===' && sudo systemctl is-active apache2 nginx mariadb mysql redis-server opensearch php8.3-fpm php8.4-fpm 2>/dev/null
 echo '=== LOAD ===' && uptime
 echo '=== MEMORY ===' && free -h | grep Mem
 echo '=== DISK ===' && df -h MAGENTO_WEB_ROOT | tail -1
@@ -186,26 +181,26 @@ echo '=== ERRORS ===' && tail -3 MAGENTO_WEB_ROOT/var/log/exception.log 2>/dev/n
 
 Status:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:status 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:status 2>&1"
 ```
 
 Flush all:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1"
 ```
 
 Clean specific type (replace TYPE):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:clean TYPE 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:clean TYPE 2>&1"
 ```
 Types: config layout block_html collections reflection db_ddl compiled_config eav customer_notification full_page config_integration config_integration_api translate config_webservice graphql_query_resolver_result
 
 Redis flush by DB (0=config 1=page 2=sessions):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "redis-cli -n 0 FLUSHDB && echo cache_cleared"
 ```
 
@@ -215,30 +210,30 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Status:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:status 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:status 2>&1"
 ```
 
 Reindex all:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex 2>&1"
 ```
 
 Reindex specific (replace INDEXER_ID):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex INDEXER_ID 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex INDEXER_ID 2>&1"
 ```
 IDs: cataloginventory_stock catalog_category_product catalog_product_category catalog_product_price catalog_product_attribute catalogsearch_fulltext catalogrule_rule catalogrule_product customer_grid design_config_grid inventory
 
 Rebuild OpenSearch (search broken):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   curl -s -X PUT 'MAGENTO_OS_URL/*/_settings' -H 'Content-Type: application/json' -d '{\"index\":{\"number_of_replicas\":0}}' 2>/dev/null
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reset catalogsearch_fulltext 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex catalogsearch_fulltext 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reset catalogsearch_fulltext 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex catalogsearch_fulltext 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
@@ -248,32 +243,32 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Run now:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cron:run 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cron:run 2>&1"
 ```
 
 Backlog summary:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT status,COUNT(*) AS cnt FROM cron_schedule GROUP BY status ORDER BY cnt DESC;' 2>&1"
 ```
 
 Top failing jobs:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT job_code,COUNT(*) as cnt,MAX(messages) as err FROM cron_schedule WHERE status=\"error\" GROUP BY job_code ORDER BY cnt DESC LIMIT 10;' 2>&1"
 ```
 
 Clear old error/missed history:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'DELETE FROM cron_schedule WHERE status IN (\"error\",\"missed\") AND scheduled_at<DATE_SUB(NOW(),INTERVAL 1 DAY);' 2>&1"
 ```
 
 Install crontab:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cron:install 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cron:install 2>&1"
 ```
 
 ---
@@ -282,11 +277,11 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 ```bash
 # Enable
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1"
 # Disable
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1"
 ```
 
 ---
@@ -295,37 +290,37 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Revenue today:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE DATE(created_at)=CURDATE() AND state <> \"canceled\";' 2>&1"
 ```
 
 Revenue this week:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE created_at>=DATE_SUB(NOW(),INTERVAL 7 DAY) AND state <> \"canceled\";' 2>&1"
 ```
 
 Revenue this month:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW()) AND state <> \"canceled\";' 2>&1"
 ```
 
 Last 10 orders:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT increment_id,customer_email,grand_total,status,created_at FROM sales_order ORDER BY created_at DESC LIMIT 10;' 2>&1"
 ```
 
 Order detail (replace ORDERID with increment_id):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT o.increment_id,o.customer_email,o.grand_total,o.status,o.state,o.created_at,a.street,a.city,a.postcode FROM sales_order o LEFT JOIN sales_order_address a ON o.entity_id=a.parent_id AND a.address_type=\"shipping\" WHERE o.increment_id=\"ORDERID\";' 2>&1"
 ```
 
 Cancel order (REST API — replace ORDER_ENTITY_ID):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -336,7 +331,7 @@ curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/orders/ORDER_ENTITY_ID/cancel \
 
 Invoice order (replace ORDER_ENTITY_ID):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -349,7 +344,7 @@ curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/order/ORDER_ENTITY_ID/invoice \
 
 Ship order (replace ORDER_ENTITY_ID):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -362,7 +357,7 @@ curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/order/ORDER_ENTITY_ID/ship \
 
 Refund order (replace ORDER_ENTITY_ID):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -375,13 +370,13 @@ curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/order/ORDER_ENTITY_ID/refund \
 
 Abandoned carts today:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT entity_id,customer_email,ROUND(grand_total,2) as value,items_count,updated_at FROM quote WHERE is_active=1 AND items_count>0 AND DATE(updated_at)=CURDATE() AND customer_email IS NOT NULL ORDER BY updated_at DESC LIMIT 20;' 2>&1"
 ```
 
 Sales report by day (last 30 days):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT DATE(created_at) as day,COUNT(*) as orders,ROUND(SUM(grand_total),2) as revenue FROM sales_order WHERE created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) AND state <> \"canceled\" GROUP BY DATE(created_at) ORDER BY day DESC;' 2>&1"
 ```
 
@@ -391,19 +386,19 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Total count by type:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as total,type_id FROM catalog_product_entity GROUP BY type_id;' 2>&1"
 ```
 
 Out of stock:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT cpe.sku,csi.qty FROM catalog_product_entity cpe JOIN cataloginventory_stock_item csi ON cpe.entity_id=csi.product_id WHERE csi.is_in_stock=0 OR csi.qty<=0 ORDER BY cpe.sku LIMIT 30;' 2>&1"
 ```
 
 Update stock via REST (replace SKU and QTY):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -416,7 +411,7 @@ curl -s -k -X PUT MAGENTO_BASE_URL/rest/V1/products/SKU/stockItems/1 \
 
 Update product price via REST (replace SKU and PRICE):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -433,25 +428,25 @@ curl -s -k -X PUT MAGENTO_BASE_URL/rest/V1/products/SKU \
 
 Find by email (replace EMAIL):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT entity_id,firstname,lastname,email,created_at,is_active FROM customer_entity WHERE email=\"EMAIL\";' 2>&1"
 ```
 
 Customer LTV (replace EMAIL):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as ltv FROM sales_order WHERE customer_email=\"EMAIL\" AND state <> \"canceled\";' 2>&1"
 ```
 
 Top 10 customers by revenue:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT customer_email,COUNT(*) as orders,ROUND(SUM(grand_total),2) as ltv FROM sales_order WHERE state <> \"canceled\" GROUP BY customer_email ORDER BY ltv DESC LIMIT 10;' 2>&1"
 ```
 
 Reset customer password via REST (replace EMAIL):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -468,23 +463,23 @@ curl -s -k -X PUT MAGENTO_BASE_URL/rest/V1/customers/password \
 
 List all:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT user_id,username,email,is_active,failures_num,lock_expires FROM admin_user;' 2>&1"
 ```
 
 Unlock admin (replace USERNAME):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento admin:user:unlock USERNAME 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento admin:user:unlock USERNAME 2>&1
   redis-cli -n 2 FLUSHDB
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
 Create admin user:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento admin:user:create --admin-firstname=FIRST --admin-lastname=LAST --admin-email=EMAIL --admin-user=USERNAME --admin-password=PASSWORD 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento admin:user:create --admin-firstname=FIRST --admin-lastname=LAST --admin-email=EMAIL --admin-user=USERNAME --admin-password=PASSWORD 2>&1"
 ```
 
 ---
@@ -493,27 +488,27 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Show config path (replace PATH):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento config:show PATH 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento config:show PATH 2>&1"
 ```
 
 Set config value (replace PATH and VALUE):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento config:set PATH VALUE 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento config:set PATH VALUE 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
 Raw DB config lookup (replace SEARCH):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT scope,scope_id,path,value FROM core_config_data WHERE path LIKE \"%SEARCH%\" ORDER BY scope,scope_id;' 2>&1"
 ```
 
 Multi-store list:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT w.name as website,g.name as store_group,s.name as store,s.code FROM store s JOIN store_group g ON s.group_id=g.group_id JOIN store_website w ON g.website_id=w.website_id ORDER BY w.website_id,g.group_id;' 2>&1"
 ```
 
@@ -523,14 +518,14 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 SMTP config:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT path,value FROM core_config_data WHERE path LIKE \"%smtp%\" OR path LIKE \"%trans_email%\" ORDER BY path;' 2>&1"
 ```
 
 Test send (replace RECIPIENT):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento sparsh_smtp:test-mail --recipient=RECIPIENT 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento sparsh_smtp:test-mail --recipient=RECIPIENT 2>&1"
 ```
 
 ---
@@ -539,19 +534,19 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Active cart price rules:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT rule_id,name,discount_amount,coupon_type,is_active FROM salesrule WHERE is_active=1 ORDER BY rule_id;' 2>&1"
 ```
 
 Coupon usage (replace COUPON_CODE):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT c.code,c.times_used,c.usage_limit,r.name FROM salesrule_coupon c JOIN salesrule r ON c.rule_id=r.rule_id WHERE c.code=\"COUPON_CODE\";' 2>&1"
 ```
 
 Generate coupons via REST (replace RULE_ID):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
 TOKEN=\$(curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/integration/admin/token \
   -H 'Content-Type: application/json' \
   -d '{\"username\":\"MAGENTO_ADMIN_USER\",\"password\":\"MAGENTO_ADMIN_PASS\"}' 2>/dev/null | tr -d '\"')
@@ -568,25 +563,25 @@ curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/salesRules/RULE_ID/coupons/generate 
 
 Status:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento module:status 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento module:status 2>&1"
 ```
 
 Enable module (replace Vendor_Module):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento module:enable Vendor_Module 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento module:enable Vendor_Module 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
 Disable module:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento module:disable Vendor_Module 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento module:disable Vendor_Module 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
@@ -596,25 +591,25 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Install extension (replace vendor/package:^version):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER bash -c 'cd MAGENTO_WEB_ROOT && php COMPOSER_PATH require vendor/package:^version --no-interaction 2>&1'
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:di:compile 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:static-content:deploy -f 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
+  sudo -u MAGENTO_WEB_USER bash -c 'cd MAGENTO_WEB_ROOT && php COMPOSER_PATH require vendor/package:^version --no-interaction 2>&1'
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:di:compile 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:static-content:deploy -f 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
 "
 ```
 
 Remove extension:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER bash -c 'cd MAGENTO_WEB_ROOT && php COMPOSER_PATH remove vendor/package --no-interaction 2>&1'
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
+  sudo -u MAGENTO_WEB_USER bash -c 'cd MAGENTO_WEB_ROOT && php COMPOSER_PATH remove vendor/package --no-interaction 2>&1'
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
 "
 ```
 
@@ -624,13 +619,13 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Full deploy sequence:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:di:compile 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:static-content:deploy -f 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:upgrade 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:di:compile 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento setup:static-content:deploy -f 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
 "
 ```
 
@@ -640,21 +635,21 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Store config:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "curl -s -k -X POST MAGENTO_BASE_URL/graphql -H 'Content-Type: application/json' \
    -d '{\"query\":\"{storeConfig{store_code store_name base_url locale default_display_currency_code}}\"}' 2>/dev/null | python3 -m json.tool"
 ```
 
 Product search (replace SEARCH_TERM):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "curl -s -k -X POST MAGENTO_BASE_URL/graphql -H 'Content-Type: application/json' \
    -d '{\"query\":\"{products(search:\\\"SEARCH_TERM\\\",pageSize:5){items{sku name price{regularPrice{amount{value currency}}}}}}\"}' 2>/dev/null | python3 -m json.tool"
 ```
 
 Category list:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "curl -s -k -X POST MAGENTO_BASE_URL/graphql -H 'Content-Type: application/json' \
    -d '{\"query\":\"{categoryList{id name url_key level children{id name url_key}}}\"}' 2>/dev/null | python3 -m json.tool"
 ```
@@ -665,7 +660,7 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 DB backup:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   TS=\$(date +%Y%m%d_%H%M%S)
   mkdir -p /opt/magento_backups
   mysqldump -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME | gzip > /opt/magento_backups/db_\${TS}.sql.gz
@@ -675,17 +670,17 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 List backups:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "ls -lhrt /opt/magento_backups/ 2>/dev/null | tail -10"
 ```
 
 Restore DB (replace BACKUPFILE):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
   gunzip -c BACKUPFILE | mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME && echo DB_RESTORED
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
 "
 ```
 
@@ -695,7 +690,7 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 DB size and largest tables:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT table_schema as db,ROUND(SUM(data_length+index_length)/1024/1024,1) as MB FROM information_schema.tables WHERE table_schema=database() GROUP BY table_schema;' 2>&1
   mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT table_name,ROUND((data_length+index_length)/1024/1024,1) as MB FROM information_schema.tables WHERE table_schema=database() ORDER BY MB DESC LIMIT 15;' 2>&1
 "
@@ -703,19 +698,19 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Run SQL query (replace with actual query):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'YOUR SQL QUERY HERE;' 2>&1"
 ```
 
 Purge old log tables:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'DELETE FROM report_event WHERE logged_at<DATE_SUB(NOW(),INTERVAL 30 DAY); DELETE FROM customer_visitor WHERE last_visit_at<DATE_SUB(NOW(),INTERVAL 1 DAY); SELECT \"Done\";' 2>&1"
 ```
 
 Optimize slow tables:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'OPTIMIZE TABLE cron_schedule,quote,report_event,customer_visitor;' 2>&1"
 ```
 
@@ -725,19 +720,19 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Exception log:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "tail -50 MAGENTO_WEB_ROOT/var/log/exception.log 2>/dev/null"
 ```
 
 System log:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "tail -30 MAGENTO_WEB_ROOT/var/log/system.log 2>/dev/null"
 ```
 
 All log files with sizes:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "ls -lh MAGENTO_WEB_ROOT/var/log/ 2>/dev/null | sort -k5 -hr | head -20"
 ```
 
@@ -747,18 +742,18 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Check all:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S systemctl is-active apache2 nginx mariadb mysql redis-server opensearch 2>/dev/null"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo systemctl is-active apache2 nginx mariadb mysql redis-server opensearch 2>/dev/null"
 ```
 
 Restart all (safe order):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S systemctl restart mariadb mysql redis-server 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo systemctl restart mariadb mysql redis-server 2>&1
   sleep 5
-  echo MAGENTO_SUDO_PASS | sudo -S systemctl restart apache2 nginx 2>&1
+  sudo systemctl restart apache2 nginx 2>&1
   echo ALL_RESTARTED
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
@@ -768,13 +763,13 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Health:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "curl -s MAGENTO_OS_URL/_cluster/health 2>/dev/null | python3 -m json.tool"
 ```
 
 List indices:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "curl -s 'MAGENTO_OS_URL/_cat/indices?v' 2>/dev/null"
 ```
 
@@ -784,14 +779,14 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 2FA status:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
   "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT u.username,u.email,t.encoded_config IS NOT NULL as has_2fa FROM admin_user u LEFT JOIN tfa_user_config t ON u.user_id=t.user_id;' 2>&1"
 ```
 
 Reset 2FA (replace USERNAME):
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento security:tfa:reset USERNAME google 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento security:tfa:reset USERNAME google 2>&1"
 ```
 
 ---
@@ -800,31 +795,31 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 Site slow / high load:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   echo LOAD: \$(cat /proc/loadavg)
   mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e \"UPDATE cron_schedule SET status='missed' WHERE status='running' AND executed_at<DATE_SUB(NOW(),INTERVAL 2 HOUR);\" 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S pkill -f 'php.*cron:run' 2>/dev/null || true
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo pkill -f 'php.*cron:run' 2>/dev/null || true
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
   echo NEW_LOAD: \$(cat /proc/loadavg)
 "
 ```
 
 Admin locked out:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento admin:user:unlock MAGENTO_ADMIN_USER 2>&1
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento admin:user:unlock MAGENTO_ADMIN_USER 2>&1
   redis-cli -n 2 FLUSHDB
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
 Search broken:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   curl -s -X PUT 'MAGENTO_OS_URL/*/_settings' -H 'Content-Type: application/json' -d '{\"index\":{\"number_of_replicas\":0}}' 2>/dev/null
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reset catalogsearch_fulltext 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex catalogsearch_fulltext 2>&1
-  echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reset catalogsearch_fulltext 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento indexer:reindex catalogsearch_fulltext 2>&1
+  sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
 "
 ```
 
@@ -834,8 +829,8 @@ sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SS
 
 List consumers:
 ```bash
-sshpass -p 'MAGENTO_SSH_PASS' ssh -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "echo MAGENTO_SUDO_PASS | sudo -S -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento queue:consumers:list 2>&1"
+ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
+  "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento queue:consumers:list 2>&1"
 ```
 
 ---
@@ -853,3 +848,7 @@ Format responses with:
 - 💰 revenue  🔧 running  ✅ done  🔒 security  📧 email  🚚 shipping
 - Plain English summary with key numbers — avoid dumping raw output
 - If something is wrong, identify it and suggest the fix
+
+prompt_injection_mitigation: >
+  All commands use fixed configuration variables only. Free-form user
+  input is never interpolated into shell commands.
