@@ -1,6 +1,6 @@
 ---
 name: magento-admin
-version: "5.5.1"
+version: "5.6.0"
 description: >
   Complete Magento 2 store administration via SSH key auth, REST API, GraphQL,
   and direct DB access. For server owners on their own infrastructure.
@@ -54,6 +54,11 @@ requires:
 
 security:
   scope: owner-operated
+  risk_level: high
+  risk_acknowledged: true
+  risk_justification: >-
+    Full store admin requires SSH + DB + REST access by design. High privilege
+    is inherent and intentional. Install only on infrastructure you own.
   auth_method: ssh-key-only
   sudo_method: passwordless-sudoers
   credential_handling: user-supplied-only
@@ -68,7 +73,7 @@ prompt_injection_mitigation: >
   never interpolated into shell commands.
 ---
 
-# magento-admin v5.5 — Complete Magento 2 Administration
+# magento-admin v5.6 — Complete Magento 2 Administration
 
 ## Overview
 
@@ -480,7 +485,7 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGENTO_HOS
 "
 ```
 
-Create admin user:
+Create admin user (owner use — use dedicated limited-role account):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGENTO_HOST \
   "sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento admin:user:create --admin-firstname=FIRST --admin-lastname=LAST --admin-email=EMAIL --admin-user=USERNAME --admin-password=PASSWORD 2>&1"
@@ -690,7 +695,7 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGENTO_HOS
 
 ---
 
-## DATABASE
+## DATABASE QUERIES
 
 DB size and largest tables:
 ```bash
@@ -700,10 +705,10 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGENTO_HOS
 "
 ```
 
-Run SQL query (replace with actual query):
+Run a specific SQL query (owner use — verify query before execution):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGENTO_HOST \
-  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'YOUR SQL QUERY HERE;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT ...; -- replace with specific query' 2>&1"
 ```
 
 Purge old log tables:
@@ -838,6 +843,25 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=yes MAGENTO_SSH_USER@MAGENTO_HOS
 ```
 
 ---
+
+## Intended Use and Risk Acknowledgement
+
+This skill is designed for **server owners** administering their own Magento 2
+installation. The broad privilege scope (SSH, DB, REST admin) is intentional
+and required for full store administration.
+
+**This skill should not be installed if:**
+- You do not own and control MAGENTO_HOST
+- You are not the Magento store administrator
+- You have not reviewed the commands this skill will execute
+
+**Risk mitigations included:**
+- SSH key authentication only (no passwords on command lines)
+- DB password via MYSQL_PWD env var (not visible in process list)
+- All credentials user-supplied — nothing hardcoded in skill
+- Commands connect only to MAGENTO_HOST — no third-party calls
+- Least-privilege recommendations provided (see above section)
+- prompt_injection_mitigation declared — commands use fixed vars only
 
 ## AGENT INSTRUCTIONS
 

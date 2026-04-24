@@ -1,6 +1,6 @@
 name: magento-admin
 slug: magento-admin
-version: "5.5.1"
+version: "5.6.0"
 description: >
   Complete Magento 2 store administration via SSH key auth, REST API, GraphQL,
   and direct DB access. For server owners on their own infrastructure.
@@ -61,6 +61,9 @@ requires:
     - python3
 security:
   scope: owner-operated
+  risk_level: high
+  risk_acknowledged: true
+  risk_justification: Full store admin requires SSH+DB+REST access by design. Install only on infrastructure you own.
   auth_method: ssh-key-only
   sudo_method: passwordless-sudoers
   credential_handling: user-supplied-only
