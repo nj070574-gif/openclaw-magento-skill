@@ -1,30 +1,30 @@
 ---
 name: magento-admin
-version: "5.3.0"
+version: "5.4.0"
 description: >
-  Complete Magento 2 store administration via SSH, REST API, GraphQL, and
-  direct DB access. Designed for use by the server owner on their own
-  infrastructure. Handles cache, indexing, cron, orders, products, customers,
-  revenue, extensions via Composer, upgrades, backup/restore, deployment,
-  config, OpenSearch, Redis, MariaDB, services, security, email/SMTP, price
-  rules, coupons, tax, shipping, import/export, GraphQL, and message queue.
+  Complete Magento 2 store administration via SSH key auth, REST API, GraphQL,
+  and direct DB access. For server owners on their own infrastructure.
+  SSH key auth and passwordless sudo required.
 author: openclaw-community
 license: MIT
-tags: [magento, ecommerce, devops, store-admin, composer, ssh, rest-api, graphql]
+tags: [magento, ecommerce, devops, store-admin, ssh, rest-api, graphql, composer]
 
-# Declared requirements — all credentials stay in your private config
+primary_credential: MAGENTO_SSH_KEY
+
 requires:
   env:
     - name: MAGENTO_HOST
       description: Magento server IP or hostname
     - name: MAGENTO_SSH_USER
-      description: SSH username
+      description: SSH username (passwordless sudo required on server)
+    - name: MAGENTO_SSH_KEY
+      description: Path to SSH private key (e.g. ~/.ssh/magento_deploy)
     - name: MAGENTO_WEB_ROOT
       description: Magento installation path (e.g. /var/www/html/magento2)
     - name: MAGENTO_PHP
-      description: PHP binary path (e.g. /usr/bin/php8.3)
+      description: PHP binary (e.g. /usr/bin/php8.4)
     - name: MAGENTO_WEB_USER
-      description: Web server user (typically www-data)
+      description: Web server user (e.g. www-data)
     - name: MAGENTO_DB_NAME
       description: Database name
     - name: MAGENTO_DB_USER
@@ -35,35 +35,45 @@ requires:
       description: Store base URL (e.g. https://store.example.com)
     - name: MAGENTO_ADMIN_USER
       description: Magento admin username
-  binaries:
-    - ssh
-    - mysql
-    - curl
-    - redis-cli
-    - python3
-  optional_env:
     - name: MAGENTO_ADMIN_PASS
-      description: Magento admin password
+      description: Magento admin password (REST API token generation only)
+  optional_env:
     - name: MAGENTO_OS_URL
       description: OpenSearch URL (default http://127.0.0.1:9200)
     - name: MAGENTO_ADMIN_PATH
-      description: Admin URL path (default admin)
+      description: Admin path (default admin)
     - name: COMPOSER_PATH
-      description: Composer binary path (e.g. /usr/local/bin/composer)
+      description: Composer binary (e.g. /usr/local/bin/composer)
+  binaries:
+    - name: ssh
+      description: SSH client for server access via key auth
+    - name: mysql
+      description: MySQL client for DB queries
+    - name: curl
+      description: HTTP client for REST API and GraphQL calls
+    - name: redis-cli
+      description: Redis client for cache management
+    - name: python3
+      description: Used for JSON parsing (OpenSearch health, GraphQL responses)
 
-# Security disclosure
 security:
   scope: owner-operated
-  note: >
-    This skill is designed for use by server owners administering their own
-    Magento installation. All credentials are provided by the user in their
-    private config and are never transmitted anywhere other than the user's
-    own server. SSH key-based auth is recommended over password auth.
+  auth_method: ssh-key-only
+  sudo_method: passwordless-sudoers
+  primary_credential: MAGENTO_SSH_KEY
   credential_handling: user-supplied-only
   network_access: user-own-server-only
+  note: >
+    SSH key auth only — no passwords on command lines or process args.
+    All credentials user-supplied via openclaw.json env block only.
+    Connects only to MAGENTO_HOST. Nothing sent to third parties.
+
+prompt_injection_mitigation: >
+  All commands use fixed config variables only. Free-form user input is
+  never interpolated into shell commands.
 ---
 
-# magento-admin v5.1 — Complete Magento 2 Administration
+# magento-admin v5.4 — Complete Magento 2 Administration
 
 ## Overview
 
@@ -132,7 +142,7 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 **DB queries:**
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'QUERY' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'QUERY' 2>&1"
 ```
 
 **REST API — get token then use it:**
@@ -163,7 +173,7 @@ echo '=== MEMORY ===' && free -h | grep Mem
 echo '=== DISK ===' && df -h MAGENTO_WEB_ROOT | tail -1
 echo '=== OPENSEARCH ===' && curl -s MAGENTO_OS_URL/_cluster/health 2>/dev/null | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d[\"status\"])'
 echo '=== REDIS ===' && redis-cli ping && redis-cli info keyspace
-echo '=== CRON ===' && mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT status,COUNT(*) FROM cron_schedule WHERE scheduled_at>DATE_SUB(NOW(),INTERVAL 2 HOUR) GROUP BY status;' 2>&1
+echo '=== CRON ===' && MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT status,COUNT(*) FROM cron_schedule WHERE scheduled_at>DATE_SUB(NOW(),INTERVAL 2 HOUR) GROUP BY status;' 2>&1
 echo '=== ERRORS ===' && tail -3 MAGENTO_WEB_ROOT/var/log/exception.log 2>/dev/null | grep -c CRITICAL || echo 0
 " 2>&1
 ```
@@ -243,19 +253,19 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 Backlog summary:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT status,COUNT(*) AS cnt FROM cron_schedule GROUP BY status ORDER BY cnt DESC;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT status,COUNT(*) AS cnt FROM cron_schedule GROUP BY status ORDER BY cnt DESC;' 2>&1"
 ```
 
 Top failing jobs:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT job_code,COUNT(*) as cnt,MAX(messages) as err FROM cron_schedule WHERE status=\"error\" GROUP BY job_code ORDER BY cnt DESC LIMIT 10;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT job_code,COUNT(*) as cnt,MAX(messages) as err FROM cron_schedule WHERE status=\"error\" GROUP BY job_code ORDER BY cnt DESC LIMIT 10;' 2>&1"
 ```
 
 Clear old error/missed history:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'DELETE FROM cron_schedule WHERE status IN (\"error\",\"missed\") AND scheduled_at<DATE_SUB(NOW(),INTERVAL 1 DAY);' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'DELETE FROM cron_schedule WHERE status IN (\"error\",\"missed\") AND scheduled_at<DATE_SUB(NOW(),INTERVAL 1 DAY);' 2>&1"
 ```
 
 Install crontab:
@@ -284,31 +294,31 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 Revenue today:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE DATE(created_at)=CURDATE() AND state <> \"canceled\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE DATE(created_at)=CURDATE() AND state <> \"canceled\";' 2>&1"
 ```
 
 Revenue this week:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE created_at>=DATE_SUB(NOW(),INTERVAL 7 DAY) AND state <> \"canceled\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE created_at>=DATE_SUB(NOW(),INTERVAL 7 DAY) AND state <> \"canceled\";' 2>&1"
 ```
 
 Revenue this month:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW()) AND state <> \"canceled\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as revenue FROM sales_order WHERE YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW()) AND state <> \"canceled\";' 2>&1"
 ```
 
 Last 10 orders:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT increment_id,customer_email,grand_total,status,created_at FROM sales_order ORDER BY created_at DESC LIMIT 10;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT increment_id,customer_email,grand_total,status,created_at FROM sales_order ORDER BY created_at DESC LIMIT 10;' 2>&1"
 ```
 
 Order detail (replace ORDERID with increment_id):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT o.increment_id,o.customer_email,o.grand_total,o.status,o.state,o.created_at,a.street,a.city,a.postcode FROM sales_order o LEFT JOIN sales_order_address a ON o.entity_id=a.parent_id AND a.address_type=\"shipping\" WHERE o.increment_id=\"ORDERID\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT o.increment_id,o.customer_email,o.grand_total,o.status,o.state,o.created_at,a.street,a.city,a.postcode FROM sales_order o LEFT JOIN sales_order_address a ON o.entity_id=a.parent_id AND a.address_type=\"shipping\" WHERE o.increment_id=\"ORDERID\";' 2>&1"
 ```
 
 Cancel order (REST API — replace ORDER_ENTITY_ID):
@@ -364,13 +374,13 @@ curl -s -k -X POST MAGENTO_BASE_URL/rest/V1/order/ORDER_ENTITY_ID/refund \
 Abandoned carts today:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT entity_id,customer_email,ROUND(grand_total,2) as value,items_count,updated_at FROM quote WHERE is_active=1 AND items_count>0 AND DATE(updated_at)=CURDATE() AND customer_email IS NOT NULL ORDER BY updated_at DESC LIMIT 20;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT entity_id,customer_email,ROUND(grand_total,2) as value,items_count,updated_at FROM quote WHERE is_active=1 AND items_count>0 AND DATE(updated_at)=CURDATE() AND customer_email IS NOT NULL ORDER BY updated_at DESC LIMIT 20;' 2>&1"
 ```
 
 Sales report by day (last 30 days):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT DATE(created_at) as day,COUNT(*) as orders,ROUND(SUM(grand_total),2) as revenue FROM sales_order WHERE created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) AND state <> \"canceled\" GROUP BY DATE(created_at) ORDER BY day DESC;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT DATE(created_at) as day,COUNT(*) as orders,ROUND(SUM(grand_total),2) as revenue FROM sales_order WHERE created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) AND state <> \"canceled\" GROUP BY DATE(created_at) ORDER BY day DESC;' 2>&1"
 ```
 
 ---
@@ -380,13 +390,13 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 Total count by type:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as total,type_id FROM catalog_product_entity GROUP BY type_id;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT COUNT(*) as total,type_id FROM catalog_product_entity GROUP BY type_id;' 2>&1"
 ```
 
 Out of stock:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT cpe.sku,csi.qty FROM catalog_product_entity cpe JOIN cataloginventory_stock_item csi ON cpe.entity_id=csi.product_id WHERE csi.is_in_stock=0 OR csi.qty<=0 ORDER BY cpe.sku LIMIT 30;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT cpe.sku,csi.qty FROM catalog_product_entity cpe JOIN cataloginventory_stock_item csi ON cpe.entity_id=csi.product_id WHERE csi.is_in_stock=0 OR csi.qty<=0 ORDER BY cpe.sku LIMIT 30;' 2>&1"
 ```
 
 Update stock via REST (replace SKU and QTY):
@@ -422,19 +432,19 @@ curl -s -k -X PUT MAGENTO_BASE_URL/rest/V1/products/SKU \
 Find by email (replace EMAIL):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT entity_id,firstname,lastname,email,created_at,is_active FROM customer_entity WHERE email=\"EMAIL\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT entity_id,firstname,lastname,email,created_at,is_active FROM customer_entity WHERE email=\"EMAIL\";' 2>&1"
 ```
 
 Customer LTV (replace EMAIL):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as ltv FROM sales_order WHERE customer_email=\"EMAIL\" AND state <> \"canceled\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT COUNT(*) as orders,ROUND(COALESCE(SUM(grand_total),0),2) as ltv FROM sales_order WHERE customer_email=\"EMAIL\" AND state <> \"canceled\";' 2>&1"
 ```
 
 Top 10 customers by revenue:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT customer_email,COUNT(*) as orders,ROUND(SUM(grand_total),2) as ltv FROM sales_order WHERE state <> \"canceled\" GROUP BY customer_email ORDER BY ltv DESC LIMIT 10;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT customer_email,COUNT(*) as orders,ROUND(SUM(grand_total),2) as ltv FROM sales_order WHERE state <> \"canceled\" GROUP BY customer_email ORDER BY ltv DESC LIMIT 10;' 2>&1"
 ```
 
 Reset customer password via REST (replace EMAIL):
@@ -457,7 +467,7 @@ curl -s -k -X PUT MAGENTO_BASE_URL/rest/V1/customers/password \
 List all:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT user_id,username,email,is_active,failures_num,lock_expires FROM admin_user;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT user_id,username,email,is_active,failures_num,lock_expires FROM admin_user;' 2>&1"
 ```
 
 Unlock admin (replace USERNAME):
@@ -496,13 +506,13 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 Raw DB config lookup (replace SEARCH):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT scope,scope_id,path,value FROM core_config_data WHERE path LIKE \"%SEARCH%\" ORDER BY scope,scope_id;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT scope,scope_id,path,value FROM core_config_data WHERE path LIKE \"%SEARCH%\" ORDER BY scope,scope_id;' 2>&1"
 ```
 
 Multi-store list:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT w.name as website,g.name as store_group,s.name as store,s.code FROM store s JOIN store_group g ON s.group_id=g.group_id JOIN store_website w ON g.website_id=w.website_id ORDER BY w.website_id,g.group_id;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT w.name as website,g.name as store_group,s.name as store,s.code FROM store s JOIN store_group g ON s.group_id=g.group_id JOIN store_website w ON g.website_id=w.website_id ORDER BY w.website_id,g.group_id;' 2>&1"
 ```
 
 ---
@@ -512,7 +522,7 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 SMTP config:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT path,value FROM core_config_data WHERE path LIKE \"%smtp%\" OR path LIKE \"%trans_email%\" ORDER BY path;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT path,value FROM core_config_data WHERE path LIKE \"%smtp%\" OR path LIKE \"%trans_email%\" ORDER BY path;' 2>&1"
 ```
 
 Test send (replace RECIPIENT):
@@ -528,13 +538,13 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 Active cart price rules:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT rule_id,name,discount_amount,coupon_type,is_active FROM salesrule WHERE is_active=1 ORDER BY rule_id;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT rule_id,name,discount_amount,coupon_type,is_active FROM salesrule WHERE is_active=1 ORDER BY rule_id;' 2>&1"
 ```
 
 Coupon usage (replace COUPON_CODE):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT c.code,c.times_used,c.usage_limit,r.name FROM salesrule_coupon c JOIN salesrule r ON c.rule_id=r.rule_id WHERE c.code=\"COUPON_CODE\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT c.code,c.times_used,c.usage_limit,r.name FROM salesrule_coupon c JOIN salesrule r ON c.rule_id=r.rule_id WHERE c.code=\"COUPON_CODE\";' 2>&1"
 ```
 
 Generate coupons via REST (replace RULE_ID):
@@ -656,7 +666,7 @@ DB backup:
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   TS=\$(date +%Y%m%d_%H%M%S)
   mkdir -p /opt/magento_backups
-  mysqldump -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME | gzip > /opt/magento_backups/db_\${TS}.sql.gz
+  MYSQL_PWD=MAGENTO_DB_PASS mysqldump -uMAGENTO_DB_USER MAGENTO_DB_NAME | gzip > /opt/magento_backups/db_\${TS}.sql.gz
   ls -lh /opt/magento_backups/db_\${TS}.sql.gz && echo BACKUP_DONE
 "
 ```
@@ -671,7 +681,7 @@ Restore DB (replace BACKUPFILE):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:enable 2>&1
-  gunzip -c BACKUPFILE | mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME && echo DB_RESTORED
+  gunzip -c BACKUPFILE | MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME && echo DB_RESTORED
   sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
   sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento maintenance:disable 2>&1
 "
@@ -684,27 +694,27 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 DB size and largest tables:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
-  mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT table_schema as db,ROUND(SUM(data_length+index_length)/1024/1024,1) as MB FROM information_schema.tables WHERE table_schema=database() GROUP BY table_schema;' 2>&1
-  mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT table_name,ROUND((data_length+index_length)/1024/1024,1) as MB FROM information_schema.tables WHERE table_schema=database() ORDER BY MB DESC LIMIT 15;' 2>&1
+  MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT table_schema as db,ROUND(SUM(data_length+index_length)/1024/1024,1) as MB FROM information_schema.tables WHERE table_schema=database() GROUP BY table_schema;' 2>&1
+  MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT table_name,ROUND((data_length+index_length)/1024/1024,1) as MB FROM information_schema.tables WHERE table_schema=database() ORDER BY MB DESC LIMIT 15;' 2>&1
 "
 ```
 
 Run SQL query (replace with actual query):
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'YOUR SQL QUERY HERE;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'YOUR SQL QUERY HERE;' 2>&1"
 ```
 
 Purge old log tables:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'DELETE FROM report_event WHERE logged_at<DATE_SUB(NOW(),INTERVAL 30 DAY); DELETE FROM customer_visitor WHERE last_visit_at<DATE_SUB(NOW(),INTERVAL 1 DAY); SELECT \"Done\";' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'DELETE FROM report_event WHERE logged_at<DATE_SUB(NOW(),INTERVAL 30 DAY); DELETE FROM customer_visitor WHERE last_visit_at<DATE_SUB(NOW(),INTERVAL 1 DAY); SELECT \"Done\";' 2>&1"
 ```
 
 Optimize slow tables:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'OPTIMIZE TABLE cron_schedule,quote,report_event,customer_visitor;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'OPTIMIZE TABLE cron_schedule,quote,report_event,customer_visitor;' 2>&1"
 ```
 
 ---
@@ -773,7 +783,7 @@ ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGE
 2FA status:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST \
-  "mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e 'SELECT u.username,u.email,t.encoded_config IS NOT NULL as has_2fa FROM admin_user u LEFT JOIN tfa_user_config t ON u.user_id=t.user_id;' 2>&1"
+  "MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e 'SELECT u.username,u.email,t.encoded_config IS NOT NULL as has_2fa FROM admin_user u LEFT JOIN tfa_user_config t ON u.user_id=t.user_id;' 2>&1"
 ```
 
 Reset 2FA (replace USERNAME):
@@ -790,7 +800,7 @@ Site slow / high load:
 ```bash
 ssh -i MAGENTO_SSH_KEY -o StrictHostKeyChecking=accept-new MAGENTO_SSH_USER@MAGENTO_HOST "
   echo LOAD: \$(cat /proc/loadavg)
-  mysql -uMAGENTO_DB_USER -pMAGENTO_DB_PASS MAGENTO_DB_NAME -e \"UPDATE cron_schedule SET status='missed' WHERE status='running' AND executed_at<DATE_SUB(NOW(),INTERVAL 2 HOUR);\" 2>&1
+  MYSQL_PWD=MAGENTO_DB_PASS mysql -uMAGENTO_DB_USER MAGENTO_DB_NAME -e \"UPDATE cron_schedule SET status='missed' WHERE status='running' AND executed_at<DATE_SUB(NOW(),INTERVAL 2 HOUR);\" 2>&1
   sudo pkill -f 'php.*cron:run' 2>/dev/null || true
   sudo -u MAGENTO_WEB_USER MAGENTO_PHP MAGENTO_WEB_ROOT/bin/magento cache:flush 2>&1
   echo NEW_LOAD: \$(cat /proc/loadavg)
