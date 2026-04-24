@@ -1,6 +1,6 @@
 name: magento-admin
 slug: magento-admin
-version: "5.4.0"
+version: "5.5.0"
 description: >
   Complete Magento 2 store administration via SSH key auth, REST API, GraphQL,
   and direct DB access. For server owners administering their own infrastructure.
@@ -47,6 +47,8 @@ requires:
     - name: MAGENTO_ADMIN_PASS
       description: Magento admin password (used only for REST API token generation)
   optional_env:
+    - name: MAGENTO_CA_CERT
+      description: Path to CA cert for HTTPS (e.g. /opt/ssl/ca.crt)
     - name: MAGENTO_OS_URL
       description: OpenSearch URL (default http://127.0.0.1:9200)
     - name: MAGENTO_ADMIN_PATH
