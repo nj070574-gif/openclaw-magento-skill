@@ -123,13 +123,18 @@ common scanner flags while remaining fully functional.
 - Token is obtained per-session, not stored
 
 **TLS:**
-- `--cacert MAGENTO_CA_CERT` used for HTTPS calls — not `-k`
-- Provide your server's CA certificate as `MAGENTO_CA_CERT` optional env var
-- Required if your store uses a self-signed certificate
+- `--cacert MAGENTO_CA_CERT` used for HTTPS calls when the var is set — never `-k`
+- Provide your server's CA certificate as `MAGENTO_CA_CERT` for an internal or
+  self-signed CA; omit it for a public cert and the system CA store is used
+- Verification is never disabled
 
-**Prompt injection:**
-- All commands use fixed configuration variables
-- Free-form user input is never interpolated into shell commands
+**Prompt injection & input validation:**
+- Connection parameters come only from the fixed `MAGENTO_*` config — never from chat
+- User-supplied operands (order IDs, emails, SKUs, module names, config paths,
+  etc.) are validated against strict allowlist patterns before substitution and
+  refused if they don't match — see "Input Handling & Injection Safety" in the skill
+- Unvalidated free-form text is never interpolated into a shell command, SQL
+  statement, or URL
 
 ---
 
@@ -160,9 +165,15 @@ Or manually: copy `skill/SKILL.md` to
 
 ### Prerequisites on your Magento server (one-time setup)
 
-1. Authorise your SSH key for the deploy user:
+1. Authorise your SSH key for the deploy user, from the agent host:
    ```
-   # Copy public key content to ~/.ssh/authorized_keys on the server
+   # Copy the agent's public key into ~/.ssh/authorized_keys on the Magento server
+   ssh-copy-id -i ~/.ssh/magento_deploy.pub deployuser@your-server-ip
+   ```
+   The commands use `StrictHostKeyChecking=yes`, so pre-seed the host key on the
+   agent host once (otherwise the first connection fails):
+   ```
+   ssh-keyscan -H your-server-ip >> ~/.ssh/known_hosts
    ```
 
 2. Configure passwordless sudo for required commands:
